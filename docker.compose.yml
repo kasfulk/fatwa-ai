@@ -5,12 +5,13 @@ services:
     build: .
     container_name: chatbot-fatwa
     ports:
-      - "8000:8000"
+      - "8003:8000"
     environment:
       - LIBRETRANSLATE_URL=http://libretranslate:5000
     depends_on:
       - libretranslate
       - weaviate
+      - transformers
 
   libretranslate:
     image: libretranslate/libretranslate:latest
@@ -33,17 +34,49 @@ services:
       - DEFAULT_VECTORIZER_MODULE=text2vec-transformers
       - ENABLE_MODULES=text2vec-transformers
       - TRANSFORMERS_INFERENCE_API=http://transformers:8000
+      - LIMIT_RESOURCES=true
+      - DISK_USE_READONLY_PERCENTAGE=80
+      - CLUSTER_HOSTNAME=node1
+      - CLUSTER_GOSSIP_BIND_PORT=8300
+      - CLUSTER_DATA_BIND_PORT=6900
+      - CLUSTER_JOIN=weaviate-node2:8300
     volumes:
       - weaviate_data:/var/lib/weaviate
+    depends_on:
+      - transformers
+
+  weaviate-node2:
+    image: semitechnologies/weaviate:1.25.3
+    container_name: weaviate-node2
+    ports:
+      - "8081:8080"
+    environment:
+      - QUERY_DEFAULTS_LIMIT=25
+      - AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=true
+      - PERSISTENCE_DATA_PATH=/var/lib/weaviate
+      - DEFAULT_VECTORIZER_MODULE=text2vec-transformers
+      - ENABLE_MODULES=text2vec-transformers
+      - TRANSFORMERS_INFERENCE_API=http://transformers:8000
+      - LIMIT_RESOURCES=true
+      - DISK_USE_READONLY_PERCENTAGE=80
+      - CLUSTER_HOSTNAME=node2
+      - CLUSTER_GOSSIP_BIND_PORT=8300
+      - CLUSTER_DATA_BIND_PORT=6900
+      - CLUSTER_JOIN=weaviate:8300
+    volumes:
+      - weaviate_data_node2:/var/lib/weaviate
+    depends_on:
+      - transformers
 
   transformers:
     image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.1
     container_name: transformers
     ports:
-      - "8001:8000"
+      - "8002:8000"
     environment:
       - MODEL_ID=intfloat/multilingual-e5-small
       - LOG_LEVEL=info
 
 volumes:
   weaviate_data:
+  weaviate_data_node2:
