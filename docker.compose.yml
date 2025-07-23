@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  chatbot:
+    build: .
+    container_name: chatbot-fatwa
+    ports:
+      - "8000:8000"
+    environment:
+      - LIBRETRANSLATE_URL=http://libretranslate:5000
+    depends_on:
+      - libretranslate
+      - weaviate
+
+  libretranslate:
+    image: libretranslate/libretranslate:latest
+    container_name: libretranslate
+    ports:
+      - "5000:5000"
+    environment:
+      - LT_LOAD_ONLY=en,id,ar
+      - LT_SECURE=false
+
+  weaviate:
+    image: semitechnologies/weaviate:1.25.3
+    container_name: weaviate
+    ports:
+      - "8080:8080"
+    environment:
+      - QUERY_DEFAULTS_LIMIT=25
+      - AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=true
+      - PERSISTENCE_DATA_PATH=/var/lib/weaviate
+      - DEFAULT_VECTORIZER_MODULE=text2vec-transformers
+      - ENABLE_MODULES=text2vec-transformers
+      - TRANSFORMERS_INFERENCE_API=http://transformers:8000
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+
+  transformers:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.1
+    container_name: transformers
+    ports:
+      - "8001:8000"
+    environment:
+      - MODEL_ID=intfloat/multilingual-e5-small
+      - LOG_LEVEL=info
+
+volumes:
+  weaviate_data:
